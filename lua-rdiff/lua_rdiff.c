@@ -103,16 +103,21 @@ static rs_result string_fill_cb (rs_job_t *job, rs_buffers_t *buf, void *opaque)
 
 static rs_result string_rfill_cb (void *opaque, rs_long_t pos, size_t *len, void **buf)
 {
-	lua_cb_obj	*cb = (lua_cb_obj *)opaque;
+  lua_cb_obj  *cb = (lua_cb_obj *)opaque;
 
-	if (pos <= cb->len) {
-		*buf = cb->buf + pos;
-		*len = cb->len - pos;
-		return RS_DONE;
-
-	} else {
-		return RS_IO_ERROR;
-	}
+  if (pos <= cb->len) {
+    size_t maxlen = cb->len - pos;
+    *buf = cb->buf + pos;
+    /* note that we must never set len greater than the requested value, since
+     that value was used to allocate the buffer and returning a larger value will
+     result in an overrun!  See rs_patch_s_copying() in patch.c */
+    if(maxlen < *len)
+      *len = maxlen;
+    return RS_DONE;
+  } else {
+    *len = 0;
+    return RS_INPUT_ENDED; /* RS_IO_ERROR? */
+  }
 }
 
 static rs_result luafunc_fill_cb (rs_job_t *job, rs_buffers_t *buf, void *opaque)
